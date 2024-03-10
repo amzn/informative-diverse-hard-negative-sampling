@@ -44,31 +44,6 @@ def dump_pickle(content, path):
         return pickle.dump(content, handle)
 
 
-def evaluate_marco(model_dir):
-    query_encode_model_args = ModelArguments(model_dir)
-    query_encode_data_args = DataArguments(
-        q_max_len=32, encode_is_qry=True,
-        encode_in_path=f"{RESOURCE_FOLDER}/dev7k.query.json",
-        encoded_save_path=f"{LOCAL_TEMP_FOLDER}/encoded_queries.pt")
-    query_encode_training_args = TrainingArguments(f"{LOCAL_TEMP_FOLDER}/encode", fp16=True,
-                                                   per_device_eval_batch_size=128)
-    encode_main(query_encode_model_args, query_encode_data_args, query_encode_training_args)
-    doc_encode_model_args = ModelArguments(model_dir)
-    doc_encode_data_args = DataArguments(
-        encode_in_path=f"{RESOURCE_FOLDER}/top100_docs.json",
-        encoded_save_path=f"{LOCAL_TEMP_FOLDER}/encoded_passages.pt")
-    doc_encode_training_args = TrainingArguments(f"{LOCAL_TEMP_FOLDER}/encode", fp16=True,
-                                                 per_device_eval_batch_size=128)
-    encode_main(doc_encode_model_args, doc_encode_data_args, doc_encode_training_args)
-    retriever_args = RetrieverParams(query_reps=f"{LOCAL_TEMP_FOLDER}/encoded_queries.pt",
-                                     passage_reps=f"{LOCAL_TEMP_FOLDER}/encoded_passages.pt",
-                                     depth=10, batch_size=-1, save_text=True,
-                                     save_ranking_to=f"{LOCAL_TEMP_FOLDER}/dev.rank.tsv")
-    retrieve_main(retriever_args)
-    mrr, mrr_per_qid = eval_ranking7k(f"{LOCAL_TEMP_FOLDER}/dev.rank.tsv")
-    print(f"************************** MRR is {mrr:.5f}")
-
-
 def main(batching_args: BatchingParams, hard_neg_args: HardNegativeSelectionParams):
     model_args: ModelArguments
     data_args: DataArguments
@@ -100,7 +75,6 @@ def main(batching_args: BatchingParams, hard_neg_args: HardNegativeSelectionPara
                                       dont_shuffle_negatives=True, num_train_epochs=3,
                                       queries_batches_path=batching_args_file)
     train_main(model_args, data_args, training_args)
-    evaluate_marco(model_dir)
 
 
 if __name__ == '__main__':
